@@ -1,0 +1,1 @@
+$CRON_SCHEDULE root sh /scripts/backup.sh >> /var/log/cron.log 2>&1
