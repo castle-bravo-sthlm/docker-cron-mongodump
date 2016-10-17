@@ -21,5 +21,6 @@ ENV CRON_SCHEDULE "0 * * * *"
 
 RUN echo "deb http://repo.mongodb.org/apt/debian jessie/mongodb-org/$MONGO_VERSION main" > /etc/apt/sources.list.d/mongodb-org.list
 RUN apt-get update && apt-get install -y \
+	openssh-client \
   mongodb-org-tools \
   && rm -rf /var/lib/apt/lists/*

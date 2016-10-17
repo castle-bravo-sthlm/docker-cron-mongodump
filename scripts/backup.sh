@@ -1,4 +1,5 @@
 #!/bin/bash
+
 . /scripts/mongourl_to_params.sh
 
 MONGOURLS=$(echo $MONGODB_BACKUP_URLS | tr ";" "\n")
@@ -11,31 +12,27 @@ for MONGOURL in $MONGOURLS; do
   MONGODB_PASSWORD=$pass
   MONGODB_DATABASE=$db
 
-  BACKUP_TMP_DIR=/tmp/backup
   BACKUP_DIR=/backups/$MONGODB_HOST/$MONGODB_DATABASE
+  TIME=$(date +"%Y%m%dT%H%M%S")
 
   echo "------- BACKUP START " `date "+ %Y-%m-%d %H:%M:%S"` "-------"
+
   echo "- mkdir -p $BACKUP_DIR -"
   mkdir -p $BACKUP_DIR
 
-  echo "- mkdir -p $BACKUP_TMP_DIR - \n"
-  mkdir -p $BACKUP_TMP_DIR
+  echo "\n- backup database at $MONGODB_HOST -\n"
+  mongodump -h $MONGODB_HOST -u $MONGODB_USER -p $MONGODB_PASSWORD -d $MONGODB_DATABASE --gzip --archive=$BACKUP_DIR/backup.$TIME.gz
 
-  echo "- backup database at $MONGODB_HOST -"
-  mongodump -h $MONGODB_HOST -u $MONGODB_USER -p $MONGODB_PASSWORD -d $MONGODB_DATABASE -o $BACKUP_TMP_DIR
+  #keep 50 log files
+  echo "\n- remove old logs -\n"
+  ls -tpd -1 $BACKUP_DIR/* | grep -v '/$' | tail -n +51 | xargs -I {} rm -- {}
 
-  if [ "$(ls -A $BACKUP_TMP_DIR)" ]; then
-     echo "\n- save tar file with content: -\n"
-     mv $BACKUP_DIR/$MONGODB_DATABASE-latest.tar.gz $BACKUP_DIR/$MONGODB_DATABASE.tar.gz 2>/dev/null
-     tar -zcvf $BACKUP_DIR/$MONGODB_DATABASE-latest.tar.gz $BACKUP_TMP_DIR
-
-     echo "\n- to $BACKUP_DIR/$MONGODB_DATABASE-latest.tar.gz -\n"
+  if [ -z "$SCP_PORT" ] || [ -z "$SCP_HOST" ] || [ -z "$SCP_USER" ] || [ -z "$SCP_REMOTE_DIR" ]; then
+    echo '- one or more scp variables are undefined, so no scp will be done'
   else
-     echo "- no tar created because no output from mongodump -"
+    echo '- trying to scp -'
+    scp -P $SCP_PORT $BACKUP_DIR/backup.$TIME.gz $SCP_USER@$SCP_HOST:$SCP_REMOTE_DIR
   fi
-
-  echo "- removing $BACKUP_DIR -\n"
-  rm -rf $BACKUP_TMP_DIR
 
   echo "------- BACKUP DONE -------\n"
 done
